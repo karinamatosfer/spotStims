@@ -1,0 +1,94 @@
+from stimuli import stimulus, stimulus_details, textures
+from buddies import stimulus_buddies
+from pathlib import Path
+import sys
+import os
+from datetime import datetime as dt
+
+
+#### SET THE EXPERIMENT CONDITIONS ####
+experiment = True
+
+experiment_num = '3b' #experiment number and fish id are interchangeable
+genotype = 'elavl3gcamp7f'
+age = 4 #dpf
+feeding = 'fed' #unfed, fed_gav, fed_adlib
+stimulus_type = 'mono_L' #mono_L, mono_R, bino
+distance_from_fish = 'dh=1.0cm' #measured from center of fish to center of dot of smallest dot
+direction = 'P-A' #AP front to back
+
+#### SETTING UP FOLDERS TO STORE DATA ####
+data_folder = r'R:\data\karina\Experiments\gut_tectum'
+if not os.path.exists(data_folder):
+    if experiment == True:
+        os.mkdir(data_folder)
+
+exp_name = f'{experiment_num}_{genotype}_{age}dpf_{feeding}_{stimulus_type}_{dt.today().strftime("%Y%m%d")}'
+exp_folder = os.path.join(data_folder, exp_name)
+if not os.path.exists(exp_folder):
+    os.mkdir(exp_folder)
+
+mySavePath = f"R:\data\karina\Experiments\gut_tectum\{exp_name}\karina_output.txt"
+
+paramspath = (
+    Path(sys.executable)
+    .parents[0]
+    .joinpath(r"Lib\site-packages\pandastim\resources\params\improv_params_kmf.json")
+            )
+
+stimBuddy = stimulus_buddies.StimulusBuddy(
+    reporting="onMotion",
+    savePath=mySavePath,
+            )
+
+#### STIMULUS DETAILS ####
+circ_sizes = [1,2,3,4,5,6,7,8,9,10]
+circle_center= (-30,92)
+
+#stimulus
+angle=180
+velocity=0.16
+stationary_time=0
+duration=5.0
+
+# create a texture
+#random.shuffle(circ_sizes)
+circ_textures = [
+        textures.CircleGrayTex(
+            texture_size=1024, circle_center=circle_center, circle_radius=c, bg_intensity=200, fg_intensity=0
+        )
+        for c in circ_sizes
+    ]* 5 #how many times to repeat each stim
+
+# create a wholefield stimulus with that texture
+fin_stims = []
+for tex in circ_textures:
+
+    moving_circ = stimulus_details.MonocularStimulusDetails(
+        angle=angle,
+        velocity=velocity,
+        stationary_time=stationary_time,
+        duration=duration,
+        texture=tex,
+        stim_name=f"{tex.circle_radius}",
+        hold_after=float(duration)
+        )
+    fin_stims.append(moving_circ)
+
+#### SAVES TXT FILE WITH STIM DETAILS ####
+stim_details_folder = os.path.join(exp_folder, r'stim_details')
+if not os.path.exists(stim_details_folder):
+    os.mkdir(stim_details_folder)
+
+file = open(os.path.join(stim_details_folder, 'stim_details.txt'), 'w')
+new_line = '\n'
+to_write = f'### STIM DETAILS ###{new_line}circle_sizes={circ_sizes}{new_line}circle_center={circle_center}{new_line}{new_line}distance_from_fish={distance_from_fish}{new_line}direction={direction}{new_line}### MOVING CIRCLE ###{new_line}angle={angle}{new_line}velocity={velocity}{new_line}stationary_time={stationary_time}{new_line}duration={duration}'
+file.write(to_write)
+file.close()
+
+##########################
+if experiment == True:
+    exp_start = input('Press Enter to continue: ')
+
+pstim = stimulus.OpenLoopStimulus(fin_stims, buddy=stimBuddy, params_path=paramspath)
+pstim.run()
